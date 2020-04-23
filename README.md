@@ -140,7 +140,40 @@ Navigate to : https://192.168.1.24:10443 and enter the token (from above).
 
 ### Redis
 
+First install a Redis Container into the "pi" namespace.
+
     $ git clone https://github.com/trulede/raspberry.microk8s.git
-    $ cd raspberry.microk8s
+    $ cd raspberry.microk8s/services
+    $ k apply -f namespace.yaml
     $ k apply -f redis.yaml
-    $ k -n redis get pods
+    $ k -n pi get services,pods
+        NAME            TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)    AGE
+        service/redis   ClusterIP   10.152.183.122   <none>        6379/TCP   45s
+
+        NAME                         READY   STATUS    RESTARTS   AGE
+        pod/redis-6fbc78dc54-9xpvv   1/1     Running   0          44s
+
+
+Then install the Redis CLI and check things are working.
+
+    $ sudo apt install redis-tools
+    $ k -n pi get deployment
+        NAME    READY   UP-TO-DATE   AVAILABLE   AGE
+        redis   1/1     1            1           31m
+    $ k -n pi port-forward deployment/redis 6379:6379 &
+        [1] 18995
+        Forwarding from 127.0.0.1:6379 -> 6379
+        Forwarding from [::1]:6379 -> 6379
+    $ redis-cli
+        Handling connection for 6379
+        127.0.0.1:6379> set foo bar
+        OK
+        127.0.0.1:6379> get foo
+        "bar"
+        127.0.0.1:6379> keys *
+        1) "foo"
+        127.0.0.1:6379> exit
+    $ fg 1
+        microk8s.kubectl -n pi port-forward deployment/redis 6379:6379
+        <CTRL C>
+    $
