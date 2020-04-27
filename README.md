@@ -270,14 +270,7 @@ and configuration for the Ingress Controller.
         deployment.apps/minecraft created
         service/minecraft created
     $ k -n pi get services,pods
-        NAME            TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)    AGE
-        service/redis   ClusterIP   10.152.183.122   <none>        6379/TCP   45s
-
-        NAME                         READY   STATUS    RESTARTS   AGE
-        pod/redis-6fbc78dc54-9xpvv   1/1     Running   0          44s
     $ k get pvc
-        NAME        STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS        AGE
-        minecraft   Bound    pvc-8fdca5bd-8dc4-4224-a85f-382d9cc271f0   1Gi        RWO            microk8s-hostpath   10m
     $ k -n ingress patch daemonset nginx-ingress-microk8s-controller --patch "$(cat minecraft-patch-ingress-daemonset.yaml)"
         daemonset.apps/nginx-ingress-microk8s-controller patched
     $ k -n ingress patch configmap nginx-ingress-udp-services-conf --patch "$(cat minecraft-patch-ingress-udp-configmap.yaml)"
