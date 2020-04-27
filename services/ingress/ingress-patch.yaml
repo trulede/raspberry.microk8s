@@ -1,0 +1,22 @@
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: nginx-ingress-microk8s-controller
+spec:
+  selector:
+    matchLabels:
+      name: nginx-ingress-microk8s
+  template:
+    metadata:
+      labels:
+        name: nginx-ingress-microk8s
+    spec:
+      containers:
+      - args:
+        - /nginx-ingress-controller
+        - --configmap=$(POD_NAMESPACE)/nginx-load-balancer-microk8s-conf
+        - --tcp-services-configmap=$(POD_NAMESPACE)/nginx-ingress-tcp-services-conf
+        - --udp-services-configmap=$(POD_NAMESPACE)/nginx-ingress-udp-services-conf
+        - --publish-status-address=127.0.0.1
+        name: nginx-ingress-microk8s
