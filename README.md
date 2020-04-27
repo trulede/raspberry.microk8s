@@ -46,8 +46,8 @@ SSH over the Wireless connection.
             wifis:
                  wlan0:
                      access-points:
-                             "XXX":
-                                     password: "***"
+                             "X":
+                                     password: "Y"
                      dhcp4: true
                      optional: true
     $ sudo netplan apply
@@ -134,17 +134,69 @@ Navigate to : https://192.168.1.24:10443 and enter the token (from above).
 
 
 
+## Setup Ingress for TCP and UDP
+
+Both TCP and UDP traffic can be proxied by the NGINX Ingress Controller which
+is included with MicroK8s. To enable this functionality the Ingress Controller
+must be patched, and a pair of ConfigMaps created (one for each of TCP and UDP).
+
+    $ git clone https://github.com/trulede/raspberry.microk8s.git
+    $ cd raspberry.microk8s/services/ingress
+    $ k -n ingress patch daemonset nginx-ingress-microk8s-controller --patch "$(cat ingress-patch.yaml)"
+        daemonset.apps/nginx-ingress-microk8s-controller patched
+    $ k -n ingress apply -f ingress-configmap.yaml
+        configmap/nginx-ingress-tcp-services-conf created
+        configmap/nginx-ingress-udp-services-conf created
+    $ k -n ingress get daemonset
+        NAME                                DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR   AGE
+        nginx-ingress-microk8s-controller   1         1         1       1            1           <none>          6d11h
+    $ k -n ingress get configmap
+        NAME                                DATA   AGE
+        ingress-controller-leader-nginx     0      6d10h
+        nginx-ingress-tcp-services-conf     0      14s
+        nginx-ingress-udp-services-conf     0      14s
+        nginx-load-balancer-microk8s-conf   0      6d10h
+    $ k -n ingress get daemonset/nginx-ingress-microk8s-controller -o yaml
+        apiVersion: apps/v1
+        kind: DaemonSet
+        metadata:
+          name: nginx-ingress-microk8s-controller
+          namespace: ingress
+         spec:
+          ...
+          template:
+            ...
+            spec:
+              containers:
+              - args:
+                - /nginx-ingress-controller
+                - --configmap=$(POD_NAMESPACE)/nginx-load-balancer-microk8s-conf
+                - --tcp-services-configmap=$(POD_NAMESPACE)/nginx-ingress-tcp-services-conf
+                - --udp-services-configmap=$(POD_NAMESPACE)/nginx-ingress-udp-services-conf
+                - --publish-status-address=127.0.0.1
+
+
+More information can be found at these links:
+* https://kubernetes.github.io/ingress-nginx/user-guide/exposing-tcp-udp-services/
+* https://minikube.sigs.k8s.io/docs/tutorials/nginx_tcp_udp_ingress/
+
+
+
 ## Use the K8s (single node) Cluster
 
+Before setting up any of the following services on your Raspberry Pi run the
+following commands:
+
+    $ git clone https://github.com/trulede/raspberry.microk8s.git
+    $ cd raspberry.microk8s/services
+    $ k apply -f namespace.yaml
 
 
 ### Redis
 
 First install a Redis Container into the "pi" namespace.
 
-    $ git clone https://github.com/trulede/raspberry.microk8s.git
-    $ cd raspberry.microk8s/services
-    $ k apply -f namespace.yaml
+    $ cd raspberry.microk8s/services/redis
     $ k apply -f redis.yaml
     $ k -n pi get services,pods
         NAME            TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)    AGE
@@ -154,12 +206,33 @@ First install a Redis Container into the "pi" namespace.
         pod/redis-6fbc78dc54-9xpvv   1/1     Running   0          44s
 
 
-Then install the Redis CLI and check things are working.
+Then patch the Ingress Controller and TCP ConfigMap to enable the proxy of
+incoming TCP connections send them to the Redis Service.
+
+    $ k -n ingress patch daemonset nginx-ingress-microk8s-controller --patch "$(cat redis-ingress-patch.yaml)"
+        daemonset.apps/nginx-ingress-microk8s-controller patched
+    $ k -n ingress patch configmap nginx-ingress-tcp-services-conf --patch "$(cat redis-patch-ingress-tcp-configmap.yaml)"
+        configmap/nginx-ingress-tcp-services-conf patched
+
+
+Finally install the Redis CLI and check things are working.
 
     $ sudo apt install redis-tools
-    $ k -n pi get deployment
-        NAME    READY   UP-TO-DATE   AVAILABLE   AGE
-        redis   1/1     1            1           31m
+    $ k -n pi get service
+        NAME    TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)    AGE
+        redis   ClusterIP   10.152.183.238   <none>        6379/TCP   10h
+    $ redis-cli
+        127.0.0.1:6379> set foo bar
+        OK
+        127.0.0.1:6379> get foo
+        "bar"
+        127.0.0.1:6379> keys *
+        1) "foo"
+        127.0.0.1:6379> exit
+
+
+Alternative method using port-forward (rather than then Ingress Controller).
+
     $ k -n pi port-forward deployment/redis 6379:6379 &
         [1] 18995
         Forwarding from 127.0.0.1:6379 -> 6379
@@ -176,4 +249,3 @@ Then install the Redis CLI and check things are working.
     $ fg 1
         microk8s.kubectl -n pi port-forward deployment/redis 6379:6379
         <CTRL C>
-    $

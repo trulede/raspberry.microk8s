@@ -7,8 +7,6 @@ metadata:
 spec:
   selector:
     app: redis
-  type:
-    LoadBalancer
   ports:
     - name: redis
       port: 6379
