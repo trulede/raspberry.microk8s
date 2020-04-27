@@ -209,7 +209,7 @@ First install a Redis Container into the "pi" namespace.
 Then patch the Ingress Controller and TCP ConfigMap to enable the proxy of
 incoming TCP connections send them to the Redis Service.
 
-    $ k -n ingress patch daemonset nginx-ingress-microk8s-controller --patch "$(cat redis-ingress-patch.yaml)"
+    $ k -n ingress patch daemonset nginx-ingress-microk8s-controller --patch "$(cat redis-patch-ingress-daemonset.yaml)"
         daemonset.apps/nginx-ingress-microk8s-controller patched
     $ k -n ingress patch configmap nginx-ingress-tcp-services-conf --patch "$(cat redis-patch-ingress-tcp-configmap.yaml)"
         configmap/nginx-ingress-tcp-services-conf patched
@@ -249,3 +249,36 @@ Alternative method using port-forward (rather than then Ingress Controller).
     $ fg 1
         microk8s.kubectl -n pi port-forward deployment/redis 6379:6379
         <CTRL C>
+
+
+
+### Minecraft
+
+Original from: https://github.com/itzg/docker-minecraft-bedrock-server
+
+> Warning: The Minecraft Server deployment to Raspberry Pi does not work. If
+> you decide to run it and find your Pi becomes unresponsive, the easiest way
+> to recover the system is to restart the Pi and quickly delete the "pi"
+> namespace: k delete namespaces pi
+
+The following commands install a Minecraft Bedrock Server with a 1 GB volume
+and configuration for the Ingress Controller.
+
+    $ cd raspberry.microk8s/services/minecraft
+    $ k apply -f minecraft.yaml
+        persistentvolumeclaim/minecraft created
+        deployment.apps/minecraft created
+        service/minecraft created
+    $ k -n pi get services,pods
+        NAME            TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)    AGE
+        service/redis   ClusterIP   10.152.183.122   <none>        6379/TCP   45s
+
+        NAME                         READY   STATUS    RESTARTS   AGE
+        pod/redis-6fbc78dc54-9xpvv   1/1     Running   0          44s
+    $ k get pvc
+        NAME        STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS        AGE
+        minecraft   Bound    pvc-8fdca5bd-8dc4-4224-a85f-382d9cc271f0   1Gi        RWO            microk8s-hostpath   10m
+    $ k -n ingress patch daemonset nginx-ingress-microk8s-controller --patch "$(cat minecraft-patch-ingress-daemonset.yaml)"
+        daemonset.apps/nginx-ingress-microk8s-controller patched
+    $ k -n ingress patch configmap nginx-ingress-udp-services-conf --patch "$(cat minecraft-patch-ingress-udp-configmap.yaml)"
+        configmap/nginx-ingress-udp-services-conf patched

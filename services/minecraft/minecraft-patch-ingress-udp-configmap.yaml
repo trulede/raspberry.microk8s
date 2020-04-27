@@ -1,0 +1,7 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-ingress-udp-services-conf
+data:
+  19132: "pi/minecraft:19132"

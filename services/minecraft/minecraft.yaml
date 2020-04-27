@@ -1,0 +1,83 @@
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: minecraft
+  namespace: pi
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: minecraft
+  namespace: pi
+  labels:
+    app: minecraft
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: minecraft
+  template:
+    metadata:
+      labels:
+        app: minecraft
+    spec:
+      containers:
+        - name: minecraft
+          image: itzg/minecraft-server:multiarch
+          env:
+            - name: EULA
+              value: "true"
+            - name: SERVER_PORT
+              value: "19132"
+            - name: GAMEMODE
+              value: "survival"
+            - name: DIFFICULTY
+              value: "normal"
+            - name: ONLINE_MODE
+              value: "false"
+          volumeMounts:
+            - mountPath: /data
+              name: data
+          livenessProbe:
+            exec:
+              command:
+                - /usr/local/bin/mc-monitor
+                - status-bedrock
+                - --host localhost
+                - --port 19132
+            initialDelaySeconds: 10
+            timeoutSeconds: 10
+          readinessProbe:
+            exec:
+              command:
+                - /usr/local/bin/mc-monitor
+                - status-bedrock
+                - --host localhost
+                - --port 19132
+            initialDelaySeconds: 10
+            periodSeconds: 10
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: minecraft
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: minecraft
+  namespace: pi
+spec:
+  selector:
+    app: minecraft
+  ports:
+    - name: minecraft
+      port: 19132
+      protocol: UDP
+      targetPort: 19132

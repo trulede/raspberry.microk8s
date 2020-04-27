@@ -1,0 +1,20 @@
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: nginx-ingress-microk8s-controller
+spec:
+  selector:
+    matchLabels:
+      name: nginx-ingress-microk8s
+  template:
+    metadata:
+      labels:
+        name: nginx-ingress-microk8s
+    spec:
+      containers:
+      - name: nginx-ingress-microk8s
+        ports:
+        - containerPort: 19132
+          hostPort: 19132
+          protocol: UDP
